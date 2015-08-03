@@ -19,8 +19,10 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 rosbuild_genmsg()
 rosbuild_gensrv()
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 # Library.
 # OLD NODES
+find_package(YamlCpp REQUIRED)
 find_package(OpenCV REQUIRED)
 message(STATUS OpenCV libs: ${OpenCV_LIBS})
 rosbuild_add_library(hueblob
@@ -30,7 +32,7 @@ target_link_libraries(hueblob ${OpenCV_LIBS})
 # Nodes.
 #  hueblob node.
 rosbuild_add_executable(hueblob_node src/nodes/hueblob_node.cpp)
-target_link_libraries(hueblob_node hueblob)
+target_link_libraries(hueblob_node hueblob ${YAMLCPP_LIBRARY})
 # OLDNODE
 
 include(FindPkgConfig)

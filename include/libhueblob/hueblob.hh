@@ -9,7 +9,7 @@
 # include <ros/ros.h>
 
 // OpenCV bridge (OpenCV<->ROS conversion).
-# include <cv_bridge/CvBridge.h>
+# include <cv_bridge/cv_bridge.h>
 
 // Image transport.
 # include <image_transport/image_transport.h>
@@ -154,11 +154,6 @@ protected:
   double threshold_;
 
   /// \}
-
-  /// \brief left image CvBridge.
-  sensor_msgs::CvBridge bridgeLeft_;
-  /// \brief disparity CvBridge.
-  sensor_msgs::CvBridge bridgeDisparity_;
 
 
   /// \brief Left image subscriber.

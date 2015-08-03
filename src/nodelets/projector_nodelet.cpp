@@ -23,8 +23,10 @@
 
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/common/centroid.h>
 #include <pcl/features/feature.h>
 #include "pcl/filters/statistical_outlier_removal.h"
+#include <pcl_conversions/pcl_conversions.h>
 
 #include "cv.h"
 #include "highgui.h"
@@ -146,12 +148,12 @@ namespace
               if (mono)
                 {
                   cloud_filtered->points.push_back(p);
-                  cloud_filtered->header = roi_stamped.header;
+                  cloud_filtered->header = pcl_conversions::toPCL(roi_stamped.header);
                 }
               if (cloud_raw)
                 {
                   cloud_raw->points.push_back(p);
-                  cloud_raw->header = roi_stamped.header;
+                  cloud_raw->header = pcl_conversions::toPCL(roi_stamped.header);
                 }
             }
         }

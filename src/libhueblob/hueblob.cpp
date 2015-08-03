@@ -21,10 +21,14 @@
 #include <boost/format.hpp>
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/common/centroid.h>
+#include <pcl/common/common.h>
 #include <pcl/features/feature.h>
 #include "pcl/filters/statistical_outlier_removal.h"
+#include <pcl_conversions/pcl_conversions.h>
 //#include <pcl_visualization/cloud_viewer.h>
 #include <Eigen/Dense>
+#include <iostream>
 #include <fstream>
 #include <sstream>
 
@@ -39,8 +43,8 @@ struct YamlModel {
 };
 
 void operator >> (const YAML::Node& node, YamlModel& model) {
-   node["name"] >> model.name;
-   node["path"] >> model.path;
+   model.name = node["name"].as<std::string>();
+   model.path = node["path"].as<std::string>();
 }
 
 
@@ -49,8 +53,6 @@ HueBlob::HueBlob()
     it_(nh_),
     stereo_topic_prefix_ (),
     threshold_(),
-    bridgeLeft_(),
-    bridgeDisparity_(),
     left_sub_(),
     right_sub_(),
     disparity_sub_(),
@@ -133,7 +135,7 @@ HueBlob::publish_tracked_images(hueblob::Blobs blobs)
       return;
     }
 
-  cv::Mat img;
+  cv_bridge::CvImagePtr img;
   bool tracked(false);
   for (  std::vector<hueblob::Blob>::iterator iter= blobs.blobs.begin();
          iter != blobs.blobs.end(); iter++ )
@@ -141,7 +143,7 @@ HueBlob::publish_tracked_images(hueblob::Blobs blobs)
       if (!leftImage_ || !rightImage_)
         break;
       tracked = true;
-      img = bridgeLeft_.imgMsgToCv(leftImage_, "bgr8");
+      img = cv_bridge::toCvCopy(leftImage_, "bgr8");
       int x =  (*iter).boundingbox_2d[0];
       int y =  (*iter).boundingbox_2d[1];
       int width =  (*iter).boundingbox_2d[2];
@@ -152,16 +154,16 @@ HueBlob::publish_tracked_images(hueblob::Blobs blobs)
       const cv::Scalar color = CV_RGB(255,0,0);
       ROS_DEBUG_STREAM("Drawing rect " << x << " " << " " << y
                        << " " << width << " " << height);
-      cv::rectangle(img, p1, p2, color, 1);
+      cv::rectangle(img->image, p1, p2, color, 1);
       std::stringstream ss (std::stringstream::in | std::stringstream::out);
-      cv::putText(img, (*iter).name, p1, CV_FONT_HERSHEY_SIMPLEX,
+      cv::putText(img->image, (*iter).name, p1, CV_FONT_HERSHEY_SIMPLEX,
                   0.5, color);
 
     }
 
   if (leftImage_ && tracked){
     cv_bridge::CvImage brd_im;
-    brd_im.image = img;
+    brd_im.image = img->image;
     brd_im.header = leftImage_->header;
     brd_im.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
     tracked_left_pub_.publish(brd_im.toImageMsg());
@@ -266,10 +268,8 @@ HueBlob::setupInfrastructure(const std::string& stereo_prefix)
     {
     try
       {
-        std::ifstream fin(preload_models_.c_str());
-        YAML::Parser parser(fin);
-        YAML::Node doc;
-        parser.GetNextDocument(doc);
+        /// @TODO support multiple models
+        YAML::Node doc = YAML::LoadFile(preload_models_);
         for(unsigned i=0;i<doc.size();i++) {
           YamlModel yaml_model;
           doc[i] >> yaml_model;
@@ -340,20 +340,19 @@ HueBlob::AddObjectCallback(hueblob::AddObject::Request& request,
   response.status = 0;
 
   // Convert ROS image to OpenCV.
-  IplImage* model_ = 0;
-  sensor_msgs::CvBridge bridge;
+  cv_bridge::CvImageConstPtr model_;
   try
     {
       boost::shared_ptr<sensor_msgs::Image> image_ptr
 	(&request.image, nullDeleter);
-      model_ = bridge.imgMsgToCv(image_ptr,"bgr8");
+      model_ = cv_bridge::toCvShare(image_ptr,"bgr8");
     }
-  catch(const sensor_msgs::CvBridgeException& error)
+  catch(const cv_bridge::Exception& error)
     {
       ROS_ERROR("failed to convert image");
       return false;
     }
-  cv::Mat model(model_, false);
+  cv::Mat model(model_->image);
 
 
   // Get reference on the object.
@@ -566,11 +565,11 @@ HueBlob::trackBlob(const std::string& name)
   // Realize 2d tracking in the image.
   Object& robject = right_objects_[name];
   // get box for right image
-  cv::Mat right_image(bridgeLeft_.imgMsgToCv(rightImage_, "bgr8"), false);
+  cv::Mat right_image(cv_bridge::toCvShare(rightImage_, "bgr8")->image);
   boost::optional<cv::RotatedRect> right_rrect = robject.track(right_image);
 
   Object& object = left_objects_[name];
-  cv::Mat image(bridgeLeft_.imgMsgToCv(leftImage_, "bgr8"), false);
+  cv::Mat image(cv_bridge::toCvShare(leftImage_, "bgr8")->image);
   boost::optional<cv::RotatedRect> rrect = object.track(image);
   if (!rrect)
     {
@@ -617,7 +616,9 @@ HueBlob::trackBlob(const std::string& name)
       sor.setStddevMulThresh (1.0);
       sor.filter (*cloud_filtered);
       cloud_filtered->header.frame_id = frame_;
-      cloud_filtered->header.stamp = leftImage_->header.stamp;
+      pcl::uint64_t pcl_stamp_;
+      pcl_conversions::toPCL(leftImage_->header.stamp, pcl_stamp_);
+      cloud_filtered->header.stamp = pcl_stamp_;
       pcl::compute3DCentroid(*cloud_filtered, centroid);
       pcl::getMinMax3D(*cloud_filtered, min3d, max3d);
       cloud_pub_.publish(cloud_filtered);

@@ -18,18 +18,18 @@
   </export>
   <depend package="nodelet"/>
   <depend package="std_msgs"/>
-  <depend package="yaml_cpp"/>
-  <depend package="pcl"/>
+  <depend package="yaml_cpp_0_3"/>
+  <!-- depend package="pcl"/ -->
   <depend package="pcl_ros"/>
   <!-- <depend package="pcl_visualization"/> -->
-  <depend package="eigen"/>
+  <!-- depend package="eigen"/ -->
   <depend package="roscpp"/>
   <depend package="sensor_msgs"/>
   <depend package="stereo_msgs"/>
   <depend package="image_transport"/>
   <depend package="geometry_msgs"/>
   <depend package="cv_bridge"/>
-  <depend package="bullet"/>
+  <!-- depend package="bullet"/ -->
   <depend package="visualization_msgs"/>
   <depend package="roslib"/>
   <depend package="resource_retriever"/>
